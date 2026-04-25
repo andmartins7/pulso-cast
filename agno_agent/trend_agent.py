@@ -25,7 +25,7 @@ from agno.storage.agent.dynamodb import DynamoDbAgentStorage
 from agno.tools.exa import ExaTools
 from agno.tools.googlesearch import GoogleSearchTools
 
-from schemas_v2 import (
+from schemas import (
     TrendPayload,
 )
 
