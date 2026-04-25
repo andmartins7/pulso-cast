@@ -14,27 +14,21 @@ import os
 
 from crewai import Agent
 from crewai_tools import SerperDevTool
-from langchain_aws import ChatBedrock
+from langchain_anthropic import ChatAnthropic
 
 
 # ─── LLM factory ─────────────────────────────────────────────────────────────
 
-def _bedrock_claude(
+def _claude(
     temperature: float = 0.7,
     max_tokens: int = 4096,
-    model_id: str = "anthropic.claude-sonnet-4-20250514-v1:0",
-) -> ChatBedrock:
-    """
-    Return a ChatBedrock instance pointed at Claude Sonnet 4.
-    Reads AWS_REGION from env; IAM role provides credentials inside Lambda.
-    """
-    return ChatBedrock(
-        model_id=model_id,
-        region_name=os.getenv("AWS_REGION", "us-east-1"),
-        model_kwargs={
-            "max_tokens":  max_tokens,
-            "temperature": temperature,
-        },
+    model: str = "claude-sonnet-4-5",
+) -> ChatAnthropic:
+    return ChatAnthropic(
+        model=model,
+        api_key=os.getenv("ANTHROPIC_API_KEY"),
+        max_tokens=max_tokens,
+        temperature=temperature,
     )
 
 
@@ -60,7 +54,7 @@ def get_trend_analyst_agent() -> Agent:
             "Conhece profundamente o comportamento de audiências brasileiras nas "
             "plataformas Meta e sabe traduzir números em narrativas acionáveis."
         ),
-        llm=_bedrock_claude(temperature=0.4),  # lower temp for analytical task
+        llm=_claude(temperature=0.4),  # lower temp for analytical task
         verbose=True,
         allow_delegation=False,
         tools=[SerperDevTool(n_results=5)],  # for last-minute validation
@@ -87,7 +81,7 @@ def get_copywriter_agent() -> Agent:
             "brasileiro: coloquial mas elegante, sem clichês. Conhece as nuances do "
             "algoritmo do Instagram para maximização de engajamento orgânico."
         ),
-        llm=_bedrock_claude(temperature=0.8),  # higher temp for creative task
+        llm=_claude(temperature=0.8),  # higher temp for creative task
         verbose=True,
         allow_delegation=False,
         tools=[],
@@ -114,7 +108,7 @@ def get_visual_director_agent() -> Agent:
             "consistência de branding. Produz prompts de IA generativa que geram "
             "resultados alinhados ao tom e à identidade visual da marca na primeira tentativa."
         ),
-        llm=_bedrock_claude(temperature=0.6),
+        llm=_claude(temperature=0.6),
         verbose=True,
         allow_delegation=False,
         tools=[],

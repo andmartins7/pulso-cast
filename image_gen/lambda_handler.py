@@ -53,9 +53,9 @@ logger = logging.getLogger(__name__)
 logger.setLevel(os.getenv("LOG_LEVEL", "INFO"))
 
 # ── AWS / config ──────────────────────────────────────────────────────────────
-s3              = boto3.client("s3",       region_name=os.getenv("AWS_REGION", "us-east-1"))
+s3              = boto3.client("s3",             region_name=os.getenv("AWS_REGION", "us-east-1"))
 bedrock         = boto3.client("bedrock-runtime", region_name=os.getenv("AWS_REGION", "us-east-1"))
-secrets_client  = boto3.client("secretsmanager", region_name=os.getenv("AWS_REGION", "us-east-1"))
+ssm_client      = boto3.client("ssm",             region_name=os.getenv("AWS_REGION", "us-east-1"))
 
 IMAGE_BUCKET     = os.getenv("IMAGE_BUCKET", "pulsocast-assets")
 S3_PREFIX        = os.getenv("S3_PREFIX", "generated-images")
@@ -519,24 +519,24 @@ def _build_url(s3_key: str) -> str:
 # ─── Secrets ──────────────────────────────────────────────────────────────────
 
 def _load_openai_key() -> str:
-    """Load OpenAI API key from Secrets Manager (cached in-memory)."""
+    """Load OpenAI API key from SSM Parameter Store (cached in-memory)."""
     global _openai_key_cache
     if _openai_key_cache:
         return _openai_key_cache
 
     try:
-        resp   = secrets_client.get_secret_value(SecretId=OPENAI_SECRET)
-        secret = json.loads(resp["SecretString"])
-        key    = secret.get("api_key") or secret.get("OPENAI_API_KEY")
+        resp = ssm_client.get_parameter(
+            Name=OPENAI_SECRET,
+            WithDecryption=True,
+        )
+        key = resp["Parameter"]["Value"]
 
         if not key:
-            raise ImageGenError(
-                f"Secret '{OPENAI_SECRET}' does not contain 'api_key'"
-            )
+            raise ImageGenError(f"SSM parameter '{OPENAI_SECRET}' is empty")
 
         _openai_key_cache = key
-        logger.info("OpenAI API key loaded from Secrets Manager")
+        logger.info("OpenAI API key loaded from SSM Parameter Store")
         return key
 
-    except secrets_client.exceptions.ResourceNotFoundException:
-        raise ImageGenError(f"Secret '{OPENAI_SECRET}' not found — Titan will be used")
+    except ssm_client.exceptions.ParameterNotFound:
+        raise ImageGenError(f"SSM parameter '{OPENAI_SECRET}' not found — Titan will be used")

@@ -32,7 +32,6 @@ Expected event (from Step Functions PublishPost state):
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
 import time
@@ -55,8 +54,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(os.getenv("LOG_LEVEL", "INFO"))
 
 # ── AWS clients ───────────────────────────────────────────────────────────────
-secrets_client  = boto3.client("secretsmanager", region_name=os.getenv("AWS_REGION", "us-east-1"))
-dynamodb        = boto3.resource("dynamodb",      region_name=os.getenv("AWS_REGION", "us-east-1"))
+ssm_client      = boto3.client("ssm",      region_name=os.getenv("AWS_REGION", "us-east-1"))
+dynamodb        = boto3.resource("dynamodb", region_name=os.getenv("AWS_REGION", "us-east-1"))
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 GRAPH_API_VERSION = "v21.0"
@@ -578,24 +577,21 @@ def _load_access_token(account_id: str) -> str:
         return _token_cache[cache_key]
 
     try:
-        response = secrets_client.get_secret_value(SecretId=SECRET_NAME)
-        secret   = json.loads(response["SecretString"])
-        token    = secret.get("access_token") or secret.get(account_id)
+        response = ssm_client.get_parameter(
+            Name=SECRET_NAME,
+            WithDecryption=True,
+        )
+        token = response["Parameter"]["Value"]
 
         if not token:
-            raise IGAuthError(
-                f"Secret '{SECRET_NAME}' does not contain 'access_token' "
-                f"or key '{account_id}'"
-            )
+            raise IGAuthError(f"SSM parameter '{SECRET_NAME}' is empty")
 
         _token_cache[cache_key] = token
-        logger.info("IG access token loaded from Secrets Manager")
+        logger.info("IG access token loaded from SSM Parameter Store")
         return token
 
-    except secrets_client.exceptions.ResourceNotFoundException:
-        raise IGAuthError(f"Secret '{SECRET_NAME}' not found in Secrets Manager")
-    except json.JSONDecodeError as exc:
-        raise IGAuthError(f"Secret '{SECRET_NAME}' is not valid JSON: {exc}")
+    except ssm_client.exceptions.ParameterNotFound:
+        raise IGAuthError(f"SSM parameter '{SECRET_NAME}' not found in Parameter Store")
 
 
 # ─── DynamoDB persistence ─────────────────────────────────────────────────────
