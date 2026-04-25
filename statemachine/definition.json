@@ -1,0 +1,375 @@
+{
+  "Comment": "PulsoCast — Musicoterapia Hospitalar: Agno → Bridge → CrewAI → EthicsGuardrail → GenerateImage → Publish",
+  "StartAt": "RunAgnoTrendAgent",
+  "States": {
+    "RunAgnoTrendAgent": {
+      "Type": "Task",
+      "Comment": "Invoke the Agno Media Trend Analysis Agent Lambda",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${AgnoAgentFunctionArn}",
+        "Payload": {
+          "niche.$": "$.niche",
+          "language.$": "$.language"
+        }
+      },
+      "ResultSelector": {
+        "trend_payload.$": "$.Payload.trend_payload",
+        "status.$": "$.Payload.status"
+      },
+      "ResultPath": "$.agno_result",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "PipelineFailed",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "CheckTrendScore"
+    },
+    "CheckTrendScore": {
+      "Type": "Choice",
+      "Comment": "Gate: only proceed if trend_score >= 0.6",
+      "Choices": [
+        {
+          "Variable": "$.agno_result.trend_payload.trend_score",
+          "NumericGreaterThanEquals": 0.6,
+          "Next": "RunLambdaBridge"
+        }
+      ],
+      "Default": "UseFallbackTrend"
+    },
+    "UseFallbackTrend": {
+      "Type": "Task",
+      "Comment": "Retrieve the strongest cached historical trend from DynamoDB",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${FallbackTrendFunctionArn}",
+        "Payload": {
+          "niche.$": "$.niche",
+          "reason": "trend_score_below_threshold"
+        }
+      },
+      "ResultSelector": {
+        "trend_payload.$": "$.Payload.trend_payload",
+        "status.$": "$.Payload.status"
+      },
+      "ResultPath": "$.agno_result",
+      "Next": "RunLambdaBridge"
+    },
+    "RunLambdaBridge": {
+      "Type": "Task",
+      "Comment": "Transform TrendPayload → ContextBrief via the Lambda Bridge",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${BridgeFunctionArn}",
+        "Payload": {
+          "trend_payload.$": "$.agno_result.trend_payload",
+          "brand_id.$": "$.brand_id",
+          "post_format.$": "$.post_format",
+          "language.$": "$.language"
+        }
+      },
+      "ResultSelector": {
+        "context_brief.$": "$.Payload.context_brief",
+        "brief_id.$": "$.Payload.brief_id",
+        "trend_id.$": "$.Payload.trend_id",
+        "status.$": "$.Payload.status"
+      },
+      "ResultPath": "$.bridge_result",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException"
+          ],
+          "IntervalSeconds": 3,
+          "MaxAttempts": 2,
+          "BackoffRate": 1.5
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "PipelineFailed",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "RunCrewAI"
+    },
+    "RunCrewAI": {
+      "Type": "Task",
+      "Comment": "Execute the 3-agent CrewAI crew to generate the post",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${CrewAIFunctionArn}",
+        "Payload": {
+          "context_brief.$": "$.bridge_result.context_brief"
+        }
+      },
+      "ResultSelector": {
+        "post_output.$": "$.Payload.post_output",
+        "post_id.$": "$.Payload.post_id",
+        "status.$": "$.Payload.status"
+      },
+      "ResultPath": "$.crewai_result",
+      "TimeoutSeconds": 300,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 15,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "PipelineFailed",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "EthicsGuardrail"
+    },
+    "RequiresHumanApproval": {
+      "Type": "Choice",
+      "Comment": "Branch: human review required? (driven by execution input)",
+      "Choices": [
+        {
+          "Variable": "$.require_approval",
+          "BooleanEquals": true,
+          "Next": "WaitForHumanApproval"
+        }
+      ],
+      "Default": "GenerateImage"
+    },
+    "WaitForHumanApproval": {
+      "Type": "Task",
+      "Comment": "Send draft to SQS and pause; resumes when reviewer calls SendTaskSuccess/Failure",
+      "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+      "Parameters": {
+        "QueueUrl": "${ApprovalQueueUrl}",
+        "MessageBody": {
+          "task_token.$": "$$.Task.Token",
+          "post_output.$": "$.crewai_result.post_output",
+          "brief_id.$": "$.bridge_result.brief_id",
+          "trend_id.$": "$.bridge_result.trend_id"
+        }
+      },
+      "HeartbeatSeconds": 86400,
+      "ResultPath": "$.approval_result",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.HeartbeatTimeout"
+          ],
+          "Next": "ApprovalTimeout",
+          "ResultPath": "$.error"
+        },
+        {
+          "ErrorEquals": [
+            "States.TaskFailed"
+          ],
+          "Next": "PostRejected",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "CheckApprovalDecision"
+    },
+    "CheckApprovalDecision": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.approval_result.decision",
+          "StringEquals": "approved",
+          "Next": "GenerateImage"
+        },
+        {
+          "Variable": "$.approval_result.decision",
+          "StringEquals": "rejected",
+          "Next": "PostRejected"
+        },
+        {
+          "Variable": "$.approval_result.decision",
+          "StringEquals": "edit_requested",
+          "Next": "RunCrewAI"
+        }
+      ],
+      "Default": "PipelineFailed"
+    },
+    "GenerateImage": {
+      "Type": "Task",
+      "Comment": "Generate post image via DALL-E 3 (primary) or Titan v2 (fallback), upload to S3",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${ImageGenFunctionArn}",
+        "Payload": {
+          "post_output.$": "$.crewai_result.post_output",
+          "post_format.$": "$.post_format",
+          "n_slides.$": "$.n_slides"
+        }
+      },
+      "ResultSelector": {
+        "asset_url.$": "$.Payload.asset_url",
+        "asset_urls.$": "$.Payload.asset_urls",
+        "provider.$": "$.Payload.provider",
+        "post_format.$": "$.Payload.post_format",
+        "status.$": "$.Payload.status"
+      },
+      "ResultPath": "$.image_result",
+      "TimeoutSeconds": 120,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 20,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "PipelineFailed",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "PublishPost"
+    },
+    "PublishPost": {
+      "Type": "Task",
+      "Comment": "Publish via Instagram Graph API and store metrics",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${PublishFunctionArn}",
+        "Payload": {
+          "post_output.$": "$.crewai_result.post_output",
+          "instagram_account_id.$": "$.instagram_account_id",
+          "asset_url.$": "$.image_result.asset_url",
+          "asset_urls.$": "$.image_result.asset_urls"
+        }
+      },
+      "ResultSelector": {
+        "instagram_post_id.$": "$.Payload.instagram_post_id",
+        "published_at.$": "$.Payload.published_at"
+      },
+      "ResultPath": "$.publish_result",
+      "End": true
+    },
+    "PostRejected": {
+      "Type": "Succeed",
+      "Comment": "Human reviewer rejected the post — pipeline ends gracefully, nothing published"
+    },
+    "ApprovalTimeout": {
+      "Type": "Succeed",
+      "Comment": "24 h approval window expired — post not published, no error raised"
+    },
+    "PipelineFailed": {
+      "Type": "Fail",
+      "Error": "PipelineExecutionError",
+      "Cause": "One or more pipeline stages failed. Check CloudWatch Logs for details."
+    },
+    "EthicsGuardrail": {
+      "Type": "Task",
+      "Comment": "Valida o PostOutput gerado pelo CrewAI contra guardrails éticos (UBAM 2018 + ABMT 2025 + LGPD). BLOCK → reinvoca RunCrewAI com feedback. WARN → pausa para revisão humana via SQS. OK → avança para GenerateImage.",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${EthicsGuardrailFunctionArn}",
+        "Payload": {
+          "post_output.$": "$.crewai_result.post_output",
+          "requires_tcle.$": "$.bridge_result.requires_tcle",
+          "show_epi.$": "$.bridge_result.show_epi"
+        }
+      },
+      "ResultSelector": {
+        "approved.$": "$.Payload.approved",
+        "must_review.$": "$.Payload.must_review",
+        "violations.$": "$.Payload.violations",
+        "feedback.$": "$.Payload.feedback",
+        "status.$": "$.Payload.status"
+      },
+      "ResultPath": "$.ethics_result",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException"
+          ],
+          "IntervalSeconds": 3,
+          "MaxAttempts": 2,
+          "BackoffRate": 1.5
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "PipelineFailed",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "CheckEthicsResult"
+    },
+    "CheckEthicsResult": {
+      "Type": "Choice",
+      "Comment": "Roteia com base no resultado dos guardrails éticos",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.ethics_result.approved",
+              "BooleanEquals": true
+            },
+            {
+              "Variable": "$.ethics_result.must_review",
+              "BooleanEquals": false
+            }
+          ],
+          "Next": "GenerateImage"
+        },
+        {
+          "And": [
+            {
+              "Variable": "$.ethics_result.approved",
+              "BooleanEquals": true
+            },
+            {
+              "Variable": "$.ethics_result.must_review",
+              "BooleanEquals": true
+            }
+          ],
+          "Next": "WaitForHumanApproval"
+        },
+        {
+          "Variable": "$.ethics_result.approved",
+          "BooleanEquals": false,
+          "Next": "RunCrewAI"
+        }
+      ],
+      "Default": "PipelineFailed"
+    }
+  }
+}

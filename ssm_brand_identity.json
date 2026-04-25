@@ -1,0 +1,53 @@
+{
+  "_comment": "TrendCast v2 — BrandIdentity para SSM. Apenas identidade imutável. Estratégia de conteúdo vem do Agno.",
+  "_ssm_path": "/trendcast/brand/musicoterapia-hospitalar/identity",
+
+  "brand_name": "Musicoterapia Hospitalar",
+
+  "professional_id": "Mt. [Nome Completo] — Musicoterapeuta ([Nº de registro UBAM/ABMT])",
+
+  "brand_voice": "Profissional de saúde na linha de frente. Fala com quem está no hospital — pacientes, familiares, enfermeiros, médicos — como alguém que entende o peso daquele ambiente e traz algo diferente para dentro dele. Tom humano, científico e esperançoso sem ser ingênuo. Educa sem simplificar. Inspira sem prometer curas.",
+
+  "brand_values": [
+    "evidência científica na prática clínica",
+    "dignidade e sigilo absoluto do paciente",
+    "humanização hospitalar com propósito",
+    "posicionamento técnico da profissão",
+    "trabalho em equipe multiprofissional"
+  ],
+
+  "target_audience": "Profissionais de saúde (enfermagem, medicina, fisioterapia, psicologia hospitalar), gestores de humanização. Secundário: familiares de pacientes internados, público geral interessado em saúde integrativa. Terciário: estudantes e musicoterapeutas em formação.",
+
+  "ethical_frameworks": [
+    "Código Nacional de Ética, Orientação e Disciplina do Musicoterapeuta — UBAM (2018)",
+    "Diretrizes e Orientações Éticas para Musicoterapeutas — ABMT (2025)",
+    "Lei Federal 14.842/2024 — Regulamentação da profissão de musicoterapeuta",
+    "LGPD — Lei nº 13.709/2018",
+    "Code of Ethics — World Federation of Music Therapy (WFMT, 2022)"
+  ],
+
+  "forbidden_language": [
+    "cura",
+    "cura pela música",
+    "música cura",
+    "curou",
+    "curei",
+    "tratamento definitivo",
+    "elimina a doença",
+    "garante",
+    "100% eficaz",
+    "sempre funciona",
+    "comprovadamente cura",
+    "resolve definitivamente"
+  ],
+
+  "required_disclaimers": {
+    "case_report": "[Relato anonimizado. Autorização obtida dos familiares/responsáveis. Todos os dados identificadores foram suprimidos conforme código de ética profissional — UBAM Art. 52.]",
+    "tcle": "[Conteúdo publicado com Termo de Consentimento Livre e Esclarecido assinado pelo paciente ou responsável legal.]",
+    "team_depoiment": "[Depoimento publicado com autorização expressa do(a) profissional.]"
+  },
+
+  "clinical_context": "Musicoterapeuta hospitalar atuando em contexto multiprofissional em ambiente hospitalar. Prática baseada em evidências com objetivos clínicos definidos, documentados em prontuário, integrados ao plano terapêutico da equipe de saúde.",
+
+  "competitor_handles": []
+}
