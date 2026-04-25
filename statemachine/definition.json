@@ -297,7 +297,7 @@
       "Comment": "Valida o PostOutput gerado pelo CrewAI contra guardrails éticos (UBAM 2018 + ABMT 2025 + LGPD). BLOCK → reinvoca RunCrewAI com feedback. WARN → pausa para revisão humana via SQS. OK → avança para GenerateImage.",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
-        "FunctionName": "${EthicsGuardrailFunctionArn}",
+        "FunctionName": "arn:aws:lambda:us-east-1:349644152945:function:pulsocast-ethics-guardrail",
         "Payload": {
           "post_output.$": "$.crewai_result.post_output",
           "requires_tcle.$": "$.bridge_result.requires_tcle",
