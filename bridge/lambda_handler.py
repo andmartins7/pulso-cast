@@ -31,7 +31,7 @@ from typing import Any
 import boto3
 from pydantic import ValidationError
 
-from schemas_v2 import (
+from schemas import (
     BrandIdentity,
     ContextBrief,
     ContentStrategyRecommendation,
@@ -57,7 +57,7 @@ _INJECTION_PATTERN = re.compile(
 
 # ─── Entry-point ──────────────────────────────────────────────────────────────
 
-def handler(event: dict, context: Any) -> dict:
+def lambda_handler(event: dict, context: Any) -> dict:
     """
     Lambda Bridge v2.
 
@@ -219,7 +219,7 @@ def _load_brand_identity(brand_id: str) -> BrandIdentity:
     if cache_key in _brand_cache:
         return _brand_cache[cache_key]
 
-    param_path = f"/trendcast/brand/{brand_id}/identity"
+    param_path = f"/pulsocast/brand/{brand_id}/identity"
     try:
         response    = ssm.get_parameter(Name=param_path, WithDecryption=False)
         raw         = json.loads(response["Parameter"]["Value"])
