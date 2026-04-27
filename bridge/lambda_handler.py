@@ -99,8 +99,12 @@ def lambda_handler(event: dict, context: Any) -> dict:
         )
 
         # ── 2. Carregar apenas BrandIdentity do SSM ───────────────────────
-        brand_id       = event.get("brand_id", "musicoterapia-hospitalar")
-        brand_identity = _load_brand_identity(brand_id)
+        brand_id = event.get("brand_id", "musicoterapia-hospitalar")
+        try:
+            brand_identity = _load_brand_identity(brand_id)
+        except Exception:
+            logger.warning("Failed to load brand identity — using default")
+            brand_identity = _default_brand_identity()
 
         # ── 3. Resolver formato ───────────────────────────────────────────
         post_format = _resolve_post_format(

@@ -72,9 +72,10 @@ CURE_PATTERNS = re.compile(
 )
 
 # Termos que identificam pacientes — UBAM Art. 16, 52 + LGPD
+# (?-i:[A-Z]) disables IGNORECASE locally so only true proper names (uppercase initial) match
 PATIENT_ID_PATTERNS = re.compile(
-    r"\b((?:paciente|cliente|usuário)\s+[A-Z][a-zA-Z]+|"
-    r"(?:o|a)\s+(?:sr\.|sra\.|senhor|senhora)\s+[A-Z]|"
+    r"\b((?:paciente|cliente|usuário)\s+(?-i:[A-Z])[a-zA-Z]+|"
+    r"(?:o|a)\s+(?:sr\.|sra\.|senhor|senhora)\s+(?-i:[A-Z])|"
     r"\d{1,2}\s+anos.*(?:diagnóstico|tem|possui)\s+|"
     r"(?:leito|quarto|enfermaria)\s+\d+.*(?:paciente|ele|ela))\b",
     re.IGNORECASE,
@@ -89,7 +90,7 @@ TITLE_MISUSE_PATTERNS = re.compile(
 
 # Garantias de resultado — UBAM Art. 49 + ABMT Seção 5
 GUARANTEE_PATTERNS = re.compile(
-    r"\b(garanti(?:r|do|da|mos|a)|100%\s+eficaz|resultados garantidos|"
+    r"\b(garante|garanti(?:r|do|da|mos|a)|100%\s+eficaz|resultados garantidos|"
     r"sempre funciona|nunca falha|comprovadamente cura|"
     r"científicamente provado que (?:cura|trata))\b",
     re.IGNORECASE,
@@ -108,7 +109,7 @@ PROFESSION_CONFUSION_PATTERNS = re.compile(
 PRICE_AS_PROMO_PATTERNS = re.compile(
     r"\b(sessão\s+por\s+R\$|apenas\s+R\$\s*\d+|a\s+partir\s+de\s+R\$|"
     r"planos?\s+a\s+partir|pacotes?\s+especiais?.*musicoterapia|"
-    r"primeira\s+sessão\s+gr[aá]tis)\b",
+    r"primeira\s+sessão\s+gr[aá]tis)",
     re.IGNORECASE,
 )
 

@@ -470,10 +470,11 @@ class InstagramPublisher:
             tag if tag.startswith("#") else f"#{tag}"
             for tag in post.hashtags
         )
+        body = f"{post.caption}\n\n{post.cta}" if post.cta else post.caption
         full_caption = (
-            f"{post.caption}\n\n{hashtag_block}".strip()
+            f"{body}\n\n{hashtag_block}".strip()
             if hashtag_block
-            else post.caption.strip()
+            else body.strip()
         )
 
         if len(full_caption) > 2200:
