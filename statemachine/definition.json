@@ -7,7 +7,7 @@
       "Comment": "Invoke the Agno Media Trend Analysis Agent Lambda",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
-        "FunctionName": "${AgnoAgentFunctionArn}",
+        "FunctionName": "arn:aws:lambda:us-east-1:349644152945:function:pulsocast-agno-agent",
         "Payload": {
           "niche.$": "$.niche",
           "language.$": "$.language"
@@ -57,7 +57,7 @@
       "Comment": "Retrieve the strongest cached historical trend from DynamoDB",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
-        "FunctionName": "${FallbackTrendFunctionArn}",
+        "FunctionName": "arn:aws:lambda:us-east-1:349644152945:function:pulsocast-fallback",
         "Payload": {
           "niche.$": "$.niche",
           "reason": "trend_score_below_threshold"
@@ -75,7 +75,7 @@
       "Comment": "Transform TrendPayload → ContextBrief via the Lambda Bridge",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
-        "FunctionName": "${BridgeFunctionArn}",
+        "FunctionName": "arn:aws:lambda:us-east-1:349644152945:function:pulsocast-bridge",
         "Payload": {
           "trend_payload.$": "$.agno_result.trend_payload",
           "brand_id.$": "$.brand_id",
@@ -116,7 +116,7 @@
       "Comment": "Execute the 3-agent CrewAI crew to generate the post",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
-        "FunctionName": "${CrewAIFunctionArn}",
+        "FunctionName": "arn:aws:lambda:us-east-1:349644152945:function:pulsocast-crewai",
         "Payload": {
           "context_brief.$": "$.bridge_result.context_brief"
         }
@@ -150,24 +150,12 @@
       ],
       "Next": "EthicsGuardrail"
     },
-    "RequiresHumanApproval": {
-      "Type": "Choice",
-      "Comment": "Branch: human review required? (driven by execution input)",
-      "Choices": [
-        {
-          "Variable": "$.require_approval",
-          "BooleanEquals": true,
-          "Next": "WaitForHumanApproval"
-        }
-      ],
-      "Default": "GenerateImage"
-    },
     "WaitForHumanApproval": {
       "Type": "Task",
       "Comment": "Send draft to SQS and pause; resumes when reviewer calls SendTaskSuccess/Failure",
       "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
       "Parameters": {
-        "QueueUrl": "${ApprovalQueueUrl}",
+        "QueueUrl": "https://sqs.us-east-1.amazonaws.com/349644152945/pulsocast-approval-queue",
         "MessageBody": {
           "task_token.$": "$$.Task.Token",
           "post_output.$": "$.crewai_result.post_output",
@@ -221,7 +209,7 @@
       "Comment": "Generate post image via DALL-E 3 (primary) or Titan v2 (fallback), upload to S3",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
-        "FunctionName": "${ImageGenFunctionArn}",
+        "FunctionName": "arn:aws:lambda:us-east-1:349644152945:function:pulsocast-image-gen",
         "Payload": {
           "post_output.$": "$.crewai_result.post_output",
           "post_format.$": "$.post_format",
@@ -264,7 +252,7 @@
       "Comment": "Publish via Instagram Graph API and store metrics",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
-        "FunctionName": "${PublishFunctionArn}",
+        "FunctionName": "arn:aws:lambda:us-east-1:349644152945:function:pulsocast-publish",
         "Payload": {
           "post_output.$": "$.crewai_result.post_output",
           "instagram_account_id.$": "$.instagram_account_id",
