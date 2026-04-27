@@ -2,16 +2,6 @@
 crewai_crew/tasks_musicoterapia_hospitalar.py
 ─────────────────────────────────────────────
 Tasks especializadas para geração de conteúdo de Musicoterapia Hospitalar.
-
-Substituem as tasks genéricas do pipeline TrendCast para este nicho.
-Cada task embutem o contexto ético e clínico diretamente no prompt.
-
-Uso:
-    from tasks_musicoterapia_hospitalar import (
-        get_analyst_task_mt,
-        get_copywriter_task_mt,
-        get_visual_task_mt,
-    )
 """
 from __future__ import annotations
 
@@ -19,17 +9,13 @@ from crewai import Agent, Task
 from schemas import ContextBrief
 
 
-# ─── TASK 1 — Analista de Tendências (especializado MT Hospitalar) ────────────
+# ─── TASK 1 — Analista de Tendências ─────────────────────────────────────────
 
 def get_analyst_task_mt(agent: Agent, brief: ContextBrief) -> Task:
-    """
-    Analisa a tendência sob a ótica da musicoterapia hospitalar.
-    Output: Briefing Criativo com ângulo clínico, pilar de conteúdo e setor.
-    """
     brief_json  = brief.model_dump_json(indent=2)
     trend_topic = brief.trend_context.topic
     trend_score = brief.trend_context.trend_score
-    audience    = brief.brand_context.target_audience
+    audience    = brief.brand_identity.target_audience
 
     return Task(
         description=f"""
@@ -91,21 +77,18 @@ def get_analyst_task_mt(agent: Agent, brief: ContextBrief) -> Task:
     )
 
 
-# ─── TASK 2 — Copywriter (especializado MT Hospitalar) ───────────────────────
+# ─── TASK 2 — Copywriter ─────────────────────────────────────────────────────
 
 def get_copywriter_task_mt(
     agent: Agent,
     brief: ContextBrief,
     analyst_task: Task,
 ) -> Task:
-    """
-    Redige o caption completo para o setor e pilar identificados.
-    Integra guardrails éticos diretamente no prompt.
-    """
-    req    = brief.post_requirements
-    brand  = brief.brand_context
-    fmt    = req.format.value.upper()
-    lang   = req.language
+    req   = brief.post_requirements
+    brand = brief.brand_identity
+    fmt   = req.format.value.upper()
+    lang  = req.language
+    ethical_context = " | ".join(brand.ethical_frameworks[:3])
 
     return Task(
         description=f"""
@@ -128,34 +111,21 @@ def get_copywriter_task_mt(
              Use parágrafos curtos com linha em branco entre eles
              Máx. 3-4 parágrafos
           3. ENCERRAMENTO — posicionamento profissional (1-2 frases)
-          4. IDENTIFICAÇÃO: "Mt. [Nome] — Musicoterapeuta" (obrigatório)
+          4. IDENTIFICAÇÃO: "{brand.professional_id}" (obrigatório)
           5. CTA — pergunta, convite para salvar ou compartilhar com equipe
 
         LINGUAGEM PROIBIDA (erros éticos graves):
-          ❌ "cura" / "música cura" / "curou" / "tratamento definitivo"
-          ❌ "garante" / "100% eficaz" / "sempre funciona"
+          ❌ {" | ".join(brand.forbidden_language[:6])}
           ❌ Nome / quarto / diagnóstico que identifique paciente
           ❌ Preço de sessão
-          ❌ "Dr." / "Me." sem ter o título
 
         LINGUAGEM RECOMENDADA:
           ✅ "evidências indicam" / "estudos mostram" / "contribui para"
           ✅ "apoia a reabilitação" / "promove bem-estar"
-          ✅ "de acordo com pesquisas em..." / "uma revisão sistemática de..."
-          ✅ Se relato de caso: "[Relato anonimizado. Autorização obtida dos familiares. UBAM Art. 52.]"
+          ✅ Se relato de caso: "{brand.required_disclaimers.get('case_report', '[Relato anonimizado. UBAM Art. 52.]')}"
 
-        PROFISSIONALISMO VISUAL NO TEXTO:
-          - Se for REEL com bastidores: mencionar jaleco, crachá, EPI quando relevante
-          - Se for relato: mencionar que a musicoterapeuta atuou dentro do prontuário,
-            com objetivos e avaliação documentados
-
-        VÍNCULO COM EQUIPE MULTIPROFISSIONAL (sempre que possível):
-          - A musicoterapia não trabalha isolada — referenciar médicos, enfermagem,
-            fisio, psicologia como parceiros de cuidado
-        ──────────────────────────────────────────────────────
-
+        FRAMEWORKS ÉTICOS: {ethical_context}
         VOZ DA MARCA: {brand.brand_voice}
-        DIRETRIZES: {brand.content_guidelines[:500]}...
 
         RETORNE APENAS O JSON:
         {{
@@ -178,19 +148,15 @@ def get_copywriter_task_mt(
     )
 
 
-# ─── TASK 3 — Diretor Visual (especializado MT Hospitalar) ───────────────────
+# ─── TASK 3 — Diretor Visual ──────────────────────────────────────────────────
 
 def get_visual_task_mt(
     agent: Agent,
     brief: ContextBrief,
     copywriter_task: Task,
 ) -> Task:
-    """
-    Cria o Visual Brief clínico para o post — priorizando ambiente hospitalar
-    real, profissionalismo visual (jaleco, EPI) e ausência de identificação de pacientes.
-    """
     fmt   = brief.post_requirements.format.value
-    brand = brief.brand_context
+    brand = brief.brand_identity
 
     aspect_map = {
         "feed":     "4:5 (1080×1350 px)",
@@ -214,52 +180,43 @@ def get_visual_task_mt(
         REGRAS VISUAIS PARA MUSICOTERAPIA HOSPITALAR:
 
         PROFISSIONALISMO:
-          - Musicoterapeuta SEMPRE com jaleco (branco ou colorido) e crachá visível
-          - Se setor exigir EPI: mostrar usando — isso reforça credibilidade clínica
-          - Sem figurino casual ou artístico — é profissional de saúde, não performer
+          - Musicoterapeuta SEMPRE com jaleco e crachá visível
+          - Se setor exigir EPI: mostrar usando — reforça credibilidade clínica
+          - Sem figurino casual ou artístico
 
         AMBIENTE:
-          - Ambiente hospitalar REAL é bem-vindo: corredor, leito vazio, sala terapêutica
-          - Evitar produção excessivamente "spa" ou "sala de meditação" — não é esse o contexto
-          - Instrumentos sobre superfícies clínicas (bancada, mesinha de leito) têm apelo autêntico
+          - Ambiente hospitalar real é bem-vindo: corredor, leito vazio, sala terapêutica
+          - Evitar produção "spa" ou "sala de meditação"
+          - Instrumentos sobre superfícies clínicas têm apelo autêntico
 
         PACIENTES:
           - NUNCA mostrar rosto de paciente sem TCLE documentado
-          - Se TCLE existe: enquadrar de forma que não seja identificável
-            (costas, mãos, detalhe do instrumento, etc.)
           - Preferir: mãos do terapeuta + instrumento, sem paciente em cena
 
-        INSTRUMENTOS:
-          - Devem ser reais e hospitalares: kalimba, xilofone terapêutico,
-            chocalho de leito, ocean drum, violão com silenciador
-          - Evitar: teclado grandioso, bateria, instrumentos de "show"
+        INSTRUMENTOS VÁLIDOS:
+          - kalimba, xilofone terapêutico, chocalho de leito, ocean drum, violão
+          - Evitar: teclado grandioso, bateria, instrumentos de show
 
-        PALETA DE CORES:
+        PALETA:
           - Azul-clínico + branco: autoridade técnica
-          - Verde-menta + branco: humanização e cuidado
-          - Terracota suave + bege: calor humano paliativo
-          - EVITAR: neon, paleta muito saturada (parece entretenimento)
-
-        TEXTO NA IMAGEM:
-          - Se houver overlay: máx. 20% da área
-          - Tipografia limpa, sem fontes cursivas decorativas
-          - Dados ou frases-chave podem aparecer em destaque
+          - Verde-menta + branco: humanização
+          - Terracota + bege: calor humano paliativo
         ──────────────────────────────────────────────────────
 
         RETORNE APENAS O JSON:
         {{
           "primary_color_palette": ["#HEX ou nome descritivo"],
           "visual_style": "descrição em 1 frase",
-          "image_prompt": "prompt DETALHADO em inglês para DALL-E 3 / Midjourney (mín. 60 palavras). OBRIGATÓRIO: incluir jaleco branco, hospital setting, no patient face, clinical instruments. NÃO incluir: smiling patient, spa, meditation room.",
+          "image_prompt": "prompt DETALHADO em inglês para DALL-E 3 (mín. 60 palavras). OBRIGATÓRIO: jaleco branco, hospital setting, no patient face, clinical instruments.",
           "format_specs": {{
             "aspect_ratio": "{aspect}",
             "text_overlay": "true/false",
             "text_overlay_content": "texto se aplicável",
-            "epi_required": "true/false — se EPI deve aparecer na imagem",
+            "epi_required": "true/false",
             "safe_zone_notes": "posicionamento para Instagram"
           }},
           "mood_references": ["ref 1", "ref 2"],
-          "production_notes": "o que EVITAR. O que reforça credibilidade clínica."
+          "production_notes": "o que EVITAR e o que reforça credibilidade clínica."
         }}
         """,
         agent=agent,
