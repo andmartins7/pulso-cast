@@ -13,10 +13,34 @@ import json
 import logging
 import os
 import re
+import sys
+import types
 from typing import Any
 
 # Lambda's home dir is read-only; CrewAI's LTMSQLiteStorage tries to mkdir there at import time.
 os.environ.setdefault("HOME", "/tmp")
+
+# pkg_resources shim: not bundled in Python 3.12 Lambda base image.
+# Provides the subset that crewai uses (get_distribution, require).
+if "pkg_resources" not in sys.modules:
+    try:
+        import pkg_resources  # noqa: F401
+    except ImportError:
+        import importlib.metadata as _meta
+        _m = types.ModuleType("pkg_resources")
+        def _get_dist(name):
+            try:
+                v = _meta.version(name)
+            except Exception:
+                v = "0.0.0"
+            return types.SimpleNamespace(version=v, project_name=name, key=name.lower())
+        _m.get_distribution = _get_dist
+        _m.require = lambda reqs: []
+        _m.DistributionNotFound = Exception
+        _m.VersionConflict = Exception
+        _m.working_set = types.SimpleNamespace(by_key={}, entries=[])
+        sys.modules["pkg_resources"] = _m
+        del _m, _get_dist, _meta
 
 from crewai import Crew, Process
 
