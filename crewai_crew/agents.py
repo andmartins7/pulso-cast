@@ -12,9 +12,8 @@ from __future__ import annotations
 
 import os
 
-from crewai import Agent
+from crewai import Agent, LLM
 from crewai_tools import SerperDevTool
-from langchain_anthropic import ChatAnthropic
 
 
 # ─── LLM factory ─────────────────────────────────────────────────────────────
@@ -23,9 +22,9 @@ def _claude(
     temperature: float = 0.7,
     max_tokens: int = 4096,
     model: str = "claude-sonnet-4-5",
-) -> ChatAnthropic:
-    return ChatAnthropic(
-        model=model,
+) -> LLM:
+    return LLM(
+        model=f"anthropic/{model}",
         api_key=os.getenv("ANTHROPIC_API_KEY"),
         max_tokens=max_tokens,
         temperature=temperature,
