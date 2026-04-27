@@ -89,12 +89,12 @@ TITAN_SIZES: dict[str, tuple[int, int]] = {
 
 # Tone → DALL-E style (vivid = dramatic, natural = realistic/calm)
 TONE_TO_DALLE_STYLE: dict[str, str] = {
-    PostTone.INSPIRATIONAL.value:  "vivid",
-    PostTone.HUMOROUS.value:       "vivid",
-    PostTone.PROVOCATIVE.value:    "vivid",
-    PostTone.EDUCATIONAL.value:    "natural",
-    PostTone.EMPATHETIC.value:     "natural",
-    PostTone.AUTHORITATIVE.value:  "natural",
+    PostTone.SCIENTIFIC.value:    "natural",
+    PostTone.HUMANIZED.value:     "vivid",
+    PostTone.EDUCATIONAL.value:   "natural",
+    PostTone.BACKSTAGE.value:     "vivid",
+    PostTone.EMPATHETIC.value:    "natural",
+    PostTone.AUTHORITATIVE.value: "natural",
 }
 
 
