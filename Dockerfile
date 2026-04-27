@@ -1,9 +1,11 @@
 FROM public.ecr.aws/lambda/python:3.12
 
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
 WORKDIR ${LAMBDA_TASK_ROOT}
 
 COPY requirements.txt .
-RUN pip install -r requirements.txt --no-cache-dir --upgrade
+RUN uv pip install -r requirements.txt --system --no-cache
 
 COPY schemas.py .
 COPY guardrails_musicoterapia.py .
