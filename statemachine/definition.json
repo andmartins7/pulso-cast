@@ -269,11 +269,14 @@
           "asset_urls.$": "$.image_result.asset_urls"
         }
       },
-      "ResultSelector": {
-        "instagram_post_id.$": "$.Payload.instagram_post_id",
-        "published_at.$": "$.Payload.published_at"
-      },
       "ResultPath": "$.publish_result",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "PipelineFailed",
+          "ResultPath": "$.error"
+        }
+      ],
       "End": true
     },
     "PostRejected": {
