@@ -152,9 +152,11 @@ def lambda_handler(event: dict, context: Any) -> dict:
 
         if post_format == PostFormat.CAROUSEL:
             images  = generator.generate_carousel(n_slides=n_slides)
+            urls    = [img.url for img in images]
             return {
                 "status":      "ok",
-                "asset_urls":  [img.url for img in images],
+                "asset_url":   urls[0] if urls else "",
+                "asset_urls":  urls,
                 "post_format": post_format.value,
                 "provider":    images[0].provider if images else "unknown",
             }
@@ -163,6 +165,7 @@ def lambda_handler(event: dict, context: Any) -> dict:
             return {
                 "status":      "ok",
                 "asset_url":   image.url,
+                "asset_urls":  [],
                 "post_format": post_format.value,
                 "provider":    image.provider,
             }
