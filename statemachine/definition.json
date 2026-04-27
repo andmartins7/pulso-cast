@@ -21,6 +21,15 @@
       "Retry": [
         {
           "ErrorEquals": [
+            "Lambda.AWSLambdaException"
+          ],
+          "IntervalSeconds": 90,
+          "MaxAttempts": 3,
+          "BackoffRate": 1.5,
+          "Comment": "Anthropic rate limit — wait 90 s before retrying"
+        },
+        {
+          "ErrorEquals": [
             "Lambda.ServiceException",
             "Lambda.TooManyRequestsException"
           ],
@@ -213,7 +222,7 @@
         "Payload": {
           "post_output.$": "$.crewai_result.post_output",
           "post_format.$": "$.post_format",
-          "n_slides.$": "$.n_slides"
+          "n_slides": 3
         }
       },
       "ResultSelector": {

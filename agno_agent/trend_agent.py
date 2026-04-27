@@ -66,42 +66,11 @@ PROFESSIONAL_DOMAINS = [
 # ─── System prompt ────────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """
-Você é um Analista Sênior de Inteligência de Conteúdo especializado em
-Musicoterapia Hospitalar e Comunicação em Saúde para Redes Sociais.
+Analista de tendências para Musicoterapia Hospitalar (MT).
+Busque sinais em redes sociais + publicações científicas e retorne um TrendPayload JSON.
 
-MISSÃO EM DUAS CAMADAS:
-
-CAMADA 0 — CAPTURA DE SINAIS:
-Rastreie simultaneamente:
-  (a) Tendências em redes sociais sobre saúde, humanização hospitalar,
-      musicoterapia e bem-estar (Instagram, YouTube, TikTok, Twitter)
-  (b) Publicações científicas recentes sobre musicoterapia clínica
-      (PubMed, SciELO, Revista Brasileira de Musicoterapia)
-  (c) Discussões profissionais em contexto de saúde hospitalar
-
-CAMADA 1 — PROCESSAMENTO E ESTRATÉGIA:
-Com base nos sinais capturados:
-  1. Identifique a tendência mais forte e relevante para MT Hospitalar
-  2. Compute o trend_score: (volume×0.4) + (min(growth,100)/100×0.4) + (positive_sentiment×0.2)
-  3. Gere a ContentStrategyRecommendation com:
-     - Pilar de conteúdo mais adequado (ciencia / humanizacao / bastidores / educacao / setor_hospitalar)
-     - Setor hospitalar mais relevante (uti / oncologia_pediatrica / cuidados_paliativos / etc.)
-     - Ângulo narrativo específico para este momento
-     - 2-3 opções de gancho para a primeira linha do post
-     - Âncoras científicas (quando pilar for ciência/educação)
-     - Riscos éticos específicos para este conteúdo (UBAM/ABMT)
-
-REGRAS ÉTICAS INVIOLÁVEIS (UBAM 2018 + ABMT 2025):
-  - NUNCA recomendar ângulo que use linguagem de "cura"
-  - NUNCA recomendar conteúdo que possa identificar paciente
-  - Se o ângulo envolver relato de caso: setar requires_tcle = true
-  - Se setor for UTI, oncologia ou infectologia: setar show_epi = true
-  - Linguistic constraint: usar "contribui para", "evidências indicam",
-    "apoia a reabilitação" — NUNCA "cura", "garante", "100% eficaz"
-
-REGRA DE FORMATO:
-  Retorne APENAS um JSON válido de TrendPayload com o campo
-  content_strategy preenchido. Nenhum texto fora do JSON.
+ÉTICA (UBAM 2018 + ABMT 2025): nunca linguagem de "cura"; requires_tcle=true se relato clínico; show_epi=true se UTI/oncologia/infectologia.
+FORMATO: APENAS JSON TrendPayload válido, sem texto extra.
 """
 
 
@@ -130,52 +99,22 @@ def build_mt_trend_agent(
         name="MusicoterapiaHospitalarTrendAgent",
         model=Claude(id=model_id),
         tools=[
-            # Busca científica e profissional (alta prioridade)
-            ExaTools(
-                num_results=3,
-                text_length_limit=400,
-                include_domains=SCIENTIFIC_DOMAINS + PROFESSIONAL_DOMAINS,
-            ),
-            # Busca em redes sociais
+            # Busca científica — resultados mínimos para controlar tokens
             ExaTools(
                 num_results=2,
                 text_length_limit=200,
-                include_domains=SOCIAL_DOMAINS,
+                include_domains=SCIENTIFIC_DOMAINS + PROFESSIONAL_DOMAINS,
             ),
             # Google para tendências em PT-BR
-            GoogleSearchTools(fixed_max_results=3),
+            GoogleSearchTools(fixed_max_results=2),
         ],
         storage=storage,
-        description=(
-            "Detecta tendências em musicoterapia hospitalar combinando "
-            "sinais de redes sociais com publicações científicas recentes, "
-            "e gera recomendação estratégica de conteúdo para Instagram."
-        ),
+        description="Detecta tendências em MT Hospitalar e gera ContentStrategy para Instagram.",
         instructions=[
-            # Camada 0 — busca
-            "Sempre buscar em pelo menos 2 fontes científicas antes de definir a tendência.",
-            "Cruzar o que está em alta nas redes sociais com o que há de evidência recente.",
-            "Priorizar tendências que tenham tanto engajamento social quanto base científica.",
-            "Verificar publicações da Revista Brasileira de Musicoterapia nos últimos 6 meses.",
-
-            # Camada 1 — estratégia
-            "O campo content_strategy.narrative_angle deve conectar a tendência detectada "
-            "com um dos 5 pilares de MT Hospitalar — explicitar a conexão.",
-            "hook_options: nunca incluir 'Você sabia que'. "
-            "Formato válido: dado numérico / cena clínica (anonimizada) / pergunta que o público não sabe responder. "
-            "LIMITE OBRIGATÓRIO: cada texto de gancho deve ter no máximo 120 caracteres — conte antes de retornar.",
-            "scientific_anchors: incluir apenas se o dado for verificável — "
-            "mencionar fonte mesmo que resumida (ex: 'Cochrane Review, 2023').",
-
-            # Guardrails
-            "Se o ângulo sugerido envolver mostrar paciente ou relato clínico: "
-            "setar requires_tcle=true e listar o risco em ethical_risks.",
-            "Se o setor for UTI, oncologia ou outro com protocolo de infecção: "
-            "setar show_epi=true.",
-            "NUNCA incluir linguagem de cura em narrative_angle ou hook_options.",
-
-            # Output
-            "Retornar APENAS JSON válido de TrendPayload — sem texto, sem markdown.",
+            "Faça 1 busca científica (PubMed/SciELO) e 1 busca Google sobre MT hospitalar.",
+            "Identifique a tendência mais forte. Compute trend_score = (volume×0.4)+(growth/100×0.4)+(sentiment×0.2).",
+            "hook_options: 2 ganchos, máximo 120 caracteres cada, sem 'Você sabia que'.",
+            "NUNCA usar linguagem de cura. Apenas JSON TrendPayload — sem texto extra.",
         ],
         response_model=TrendPayload,
         structured_outputs=True,
@@ -201,15 +140,12 @@ def run_trend_analysis(
     if agent is None:
         agent = build_mt_trend_agent()
 
-    prompt = f"""
-    Área: {niche} | Idioma: {language} | Janela: últimas 24h
-
-    1. Busque tendências recentes: redes sociais (Instagram/YouTube) + publicações científicas (PubMed/SciELO) sobre musicoterapia hospitalar.
-    2. Identifique a tendência mais forte. Compute o trend_score.
-    3. Gere ContentStrategyRecommendation: pilar, setor hospitalar, ângulo narrativo, 2 ganchos (sem "Você sabia que"), âncoras científicas se disponíveis, riscos éticos.
-
-    Retorne APENAS o JSON TrendPayload válido com content_strategy preenchido.
-    """
+    prompt = (
+        f"Área: {niche} | Idioma: {language} | Janela: últimas 24h. "
+        "Busque 1 fonte científica + 1 Google. Identifique tendência, compute trend_score, "
+        "gere ContentStrategyRecommendation com 2 ganchos (≤120 chars cada). "
+        "Retorne APENAS JSON TrendPayload."
+    )
 
     logger.info(f"Agno MT analysis | niche='{niche}' lang='{language}'")
     response = agent.run(prompt)
@@ -262,5 +198,10 @@ def lambda_handler(event: dict, context) -> dict:
             "setor":         payload.content_strategy.hospital_sector.value,
         }
     except Exception as exc:
+        err_str = str(exc)
+        # Re-raise rate limit errors so Step Functions can retry with backoff
+        if "rate_limit" in err_str or "429" in err_str or "rate limit" in err_str.lower():
+            logger.warning("Anthropic rate limit hit — propagating for Step Functions retry")
+            raise
         logger.exception("MT Trend Agent Lambda failed")
-        return {"status": "error", "error": str(exc)}
+        return {"status": "error", "error": err_str}
