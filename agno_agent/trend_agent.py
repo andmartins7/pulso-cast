@@ -132,18 +132,18 @@ def build_mt_trend_agent(
         tools=[
             # Busca científica e profissional (alta prioridade)
             ExaTools(
-                num_results=8,
-                text_length_limit=800,
+                num_results=3,
+                text_length_limit=400,
                 include_domains=SCIENTIFIC_DOMAINS + PROFESSIONAL_DOMAINS,
             ),
             # Busca em redes sociais
             ExaTools(
-                num_results=6,
-                text_length_limit=400,
+                num_results=2,
+                text_length_limit=200,
                 include_domains=SOCIAL_DOMAINS,
             ),
             # Google para tendências em PT-BR
-            GoogleSearchTools(fixed_max_results=5),
+            GoogleSearchTools(fixed_max_results=3),
         ],
         storage=storage,
         description=(
@@ -201,28 +201,11 @@ def run_trend_analysis(
         agent = build_mt_trend_agent()
 
     prompt = f"""
-    Analise tendências atuais para a área de: **{niche}**
-    Idioma alvo: {language}
-    Janela de análise: últimas 24 horas
+    Área: {niche} | Idioma: {language} | Janela: últimas 24h
 
-    ETAPA 1 — CAPTURA DE SINAIS (Camada 0):
-    Busque simultaneamente:
-    (a) O que está em alta no Instagram/TikTok/YouTube sobre musicoterapia hospitalar,
-        saúde com música, humanização hospitalar, cuidados paliativos, UTI, oncologia pediátrica
-    (b) Publicações científicas recentes sobre musicoterapia clínica em PubMed/SciELO
-    (c) Discussões profissionais de saúde em contexto hospitalar brasileiro
-
-    ETAPA 2 — PROCESSAMENTO E ESTRATÉGIA (Camada 1):
-    Com base nos sinais:
-    (a) Identifique a tendência mais forte e relevante para uma musicoterapeuta hospitalar
-    (b) Compute o trend_score
-    (c) Gere a ContentStrategyRecommendation completa:
-        - Classifique no pilar correto (ciencia / humanizacao / bastidores / educacao / setor_hospitalar)
-        - Identifique o setor hospitalar mais relevante
-        - Crie o ângulo narrativo específico
-        - Gere 2-3 opções de gancho (sem "Você sabia que")
-        - Liste âncoras científicas se disponíveis
-        - Mapeie riscos éticos específicos para este conteúdo
+    1. Busque tendências recentes: redes sociais (Instagram/YouTube) + publicações científicas (PubMed/SciELO) sobre musicoterapia hospitalar.
+    2. Identifique a tendência mais forte. Compute o trend_score.
+    3. Gere ContentStrategyRecommendation: pilar, setor hospitalar, ângulo narrativo, 2 ganchos (sem "Você sabia que"), âncoras científicas se disponíveis, riscos éticos.
 
     Retorne APENAS o JSON TrendPayload válido com content_strategy preenchido.
     """
