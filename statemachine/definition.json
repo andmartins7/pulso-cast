@@ -288,8 +288,8 @@
         "FunctionName": "arn:aws:lambda:us-east-1:349644152945:function:pulsocast-ethics-guardrail",
         "Payload": {
           "post_output.$": "$.crewai_result.post_output",
-          "requires_tcle.$": "$.bridge_result.requires_tcle",
-          "show_epi.$": "$.bridge_result.show_epi"
+          "requires_tcle.$": "$.bridge_result.context_brief.content_strategy.requires_tcle",
+          "show_epi.$": "$.bridge_result.context_brief.content_strategy.show_epi"
         }
       },
       "ResultSelector": {
