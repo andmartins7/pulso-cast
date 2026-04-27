@@ -1,7 +1,7 @@
 # ── Core AI frameworks ────────────────────────────────────────────────────────
 agno==1.4.0
 crewai==0.80.0
-crewai-tools==0.35.0
+crewai-tools==0.36.0
 
 # ── LLM / cloud integrations ─────────────────────────────────────────────────
 anthropic==0.40.0
