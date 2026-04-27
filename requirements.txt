@@ -23,6 +23,7 @@ openai>=1.0.0
 exa-py>=1.0.0
 google-search-results>=2.4.2
 googlesearch-python>=1.2.3
+pycountry>=24.0.0
 
 # ── Utilities ─────────────────────────────────────────────────────────────────
 python-dotenv>=1.0.0
