@@ -15,6 +15,9 @@ import os
 import re
 from typing import Any
 
+# Lambda's home dir is read-only; CrewAI's LTMSQLiteStorage tries to mkdir there at import time.
+os.environ.setdefault("HOME", "/tmp")
+
 from crewai import Crew, Process
 
 from .agents import (
