@@ -346,3 +346,54 @@ def build_guardrail_feedback(result: GuardrailResult) -> str:
     )
 
     return "\n".join(lines)
+
+
+# ─── Lambda handler ───────────────────────────────────────────────────────────
+
+def lambda_handler(event: dict, context) -> dict:
+    """
+    Entry-point Lambda para o Step Functions EthicsGuardrail.
+
+    Event: {
+        "post_output":   PostOutput dict,
+        "requires_tcle": bool,
+        "show_epi":      bool
+    }
+    Returns: {
+        "approved":     bool,
+        "must_review":  bool,
+        "violations":   list,
+        "feedback":     str,
+        "status":       "ok"
+    }
+    """
+    post_output  = event.get("post_output", {})
+    requires_tcle = bool(event.get("requires_tcle", False))
+    # show_epi is informational — handled by CrewAI/image-gen
+
+    caption   = post_output.get("caption", "")
+    image_prompt = post_output.get("visual_brief", {}).get("image_prompt", "") if isinstance(post_output.get("visual_brief"), dict) else ""
+    full_text = image_prompt
+
+    # requires_tcle=True means content may identify a patient → treat as unauthorized
+    result = MusicoterapiaGuardrail.validate(
+        caption=caption,
+        full_text=full_text,
+        has_patient_authorization=(not requires_tcle),
+    )
+
+    return {
+        "approved":    result.approved,
+        "must_review": result.must_review,
+        "violations":  [
+            {
+                "severity":    v.severity,
+                "rule_ref":    v.rule_ref,
+                "description": v.description,
+                "excerpt":     v.excerpt,
+            }
+            for v in result.violations
+        ],
+        "feedback": build_guardrail_feedback(result),
+        "status":   "ok",
+    }
