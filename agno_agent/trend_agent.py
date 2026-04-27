@@ -162,7 +162,8 @@ def build_mt_trend_agent(
             "O campo content_strategy.narrative_angle deve conectar a tendência detectada "
             "com um dos 5 pilares de MT Hospitalar — explicitar a conexão.",
             "hook_options: nunca incluir 'Você sabia que'. "
-            "Formato válido: dado numérico / cena clínica (anonimizada) / pergunta que o público não sabe responder.",
+            "Formato válido: dado numérico / cena clínica (anonimizada) / pergunta que o público não sabe responder. "
+            "LIMITE OBRIGATÓRIO: cada texto de gancho deve ter no máximo 120 caracteres — conte antes de retornar.",
             "scientific_anchors: incluir apenas se o dado for verificável — "
             "mencionar fonte mesmo que resumida (ex: 'Cochrane Review, 2023').",
 
@@ -223,6 +224,13 @@ def run_trend_analysis(
             )
         clean = raw.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
         payload = TrendPayload.model_validate_json(clean)
+
+    # Truncate hook texts that exceed the 120-char Pydantic limit
+    for hook in payload.content_strategy.hook_options:
+        if len(hook.text) > 120:
+            cut = hook.text[:120].rsplit(" ", 1)[0]
+            logger.warning(f"Hook truncated: {hook.text!r} → {cut!r}")
+            hook.text = cut
 
     logger.info(
         f"TrendPayload OK | topic='{payload.consolidated_topic}' "
